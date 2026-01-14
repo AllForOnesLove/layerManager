@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel数据汇总工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .step {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f8f9fa;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8e9ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 12px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .file-meta {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            margin-left: 10px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .field-config {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .field-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .field-row:last-child {
+            margin-bottom: 0;
+        }
+
+        select, input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        select {
+            flex: 1;
+        }
+
+        input {
+            flex: 1;
+        }
+
+        .add-field-btn {
+            margin-top: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .add-field-btn:hover {
+            background: #218838;
+        }
+
+        .remove-field-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .remove-field-btn:hover {
+            background: #c82333;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .btn-large {
+            padding: 12px 30px;
+            font-size: 16px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Excel数据汇总工具</h1>
+            <p>轻松合并多张Excel表格的指定字段</p>
+        </div>
+
+        <div class="content">
+            <!-- 提示信息 -->
+            <div id="alert" class="alert"></div>
+
+            <!-- 步骤1: 上传文件 -->
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">1</span>
+                    上传Excel文件
+                </div>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">点击或拖拽文件到此处上传</div>
+                    <div class="upload-hint">支持 .xlsx 和 .xls 格式，最多上传7个文件</div>
+                </div>
+                <input type="file" id="fileInput" multiple accept=".xlsx,.xls">
+                <div class="file-list" id="fileList"></div>
+            </div>
+
+            <!-- 步骤2: 配置字段 -->
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">2</span>
+                    配置字段映射
+                </div>
+                <div id="fieldConfigs"></div>
+                <div class="empty-state" id="emptyConfig" style="display: none;">
+                    <div class="empty-state-icon">📋</div>
+                    <div>请先上传Excel文件</div>
+                </div>
+            </div>
+
+            <!-- 步骤3: 预览和生成 -->
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">3</span>
+                    生成汇总表
+                </div>
+                <div class="actions">
+                    <button class="btn btn-primary btn-large" id="mergeBtn" disabled>
+                        🚀 生成汇总表
+                    </button>
+                </div>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div>正在处理中，请稍候...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let uploadedFiles = [];
+        let outputId = null;
+
+        // DOM元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const fieldConfigs = document.getElementById('fieldConfigs');
+        const emptyConfig = document.getElementById('emptyConfig');
+        const mergeBtn = document.getElementById('mergeBtn');
+        const loading = document.getElementById('loading');
+        const alert = document.getElementById('alert');
+
+        // 显示提示信息
+        function showAlert(message, type = 'success') {
+            alert.textContent = message;
+            alert.className = `alert alert-${type} show`;
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 5000);
+        }
+
+        // 上传区域点击事件
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(f => 
+                f.name.endsWith('.xlsx') || f.name.endsWith('.xls')
+            );
+            handleFiles(files);
+        });
+
+        // 文件选择事件
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+
+        // 处理文件上传
+        async function handleFiles(files) {
+            if (uploadedFiles.length + files.length > 7) {
+                showAlert('最多只能上传7个文件', 'error');
+                return;
+            }
+
+            for (const file of files) {
+                await uploadFile(file);
+            }
+        }
+
+        // 上传单个文件
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showAlert(data.error || '上传失败', 'error');
+                    return;
+                }
+
+                uploadedFiles.push({
+                    ...data,
+                    originalName: file.name
+                });
+
+                renderFileList();
+                renderFieldConfigs();
+                updateMergeButton();
+
+                showAlert(`文件 "${file.name}" 上传成功`, 'success');
+            } catch (error) {
+                showAlert(`上传失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 渲染文件列表
+        function renderFileList() {
+            if (uploadedFiles.length === 0) {
+                fileList.innerHTML = '';
+                return;
+            }
+
+            fileList.innerHTML = uploadedFiles.map((file, index) => `
+                <div class="file-item">
+                    <div class="file-info">
+                        <div class="file-name">${file.originalName}</div>
+                        <div class="file-meta">
+                            ${file.row_count} 行 × ${file.columns.length} 列
+                            ${file.sheet_names && file.sheet_names.length > 1 ? ` | ${file.sheet_names.length} 个Sheet` : ''}
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" onclick="removeFile(${index})">删除</button>
+                </div>
+            `).join('');
+        }
+
+        // 删除文件
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            renderFileList();
+            renderFieldConfigs();
+            updateMergeButton();
+        }
+
+        // 渲染字段配置
+        function renderFieldConfigs() {
+            if (uploadedFiles.length === 0) {
+                fieldConfigs.innerHTML = '';
+                emptyConfig.style.display = 'block';
+                return;
+            }
+
+            emptyConfig.style.display = 'none';
+            fieldConfigs.innerHTML = uploadedFiles.map((file, fileIndex) => {
+                // 为每个文件初始化字段配置（如果没有）
+                if (!file.fields) {
+                    file.fields = [
+                        { source: '', target: '' }
+                    ];
+                }
+
+                return `
+                    <div class="field-config">
+                        <div style="font-weight: 600; margin-bottom: 15px; color: #333;">
+                            📄 ${file.originalName}
+                            ${file.sheet_names && file.sheet_names.length > 1 ? `
+                                <select onchange="changeSheet(${fileIndex}, this.value)" style="margin-left: 10px; padding: 4px 8px;">
+                                    ${file.sheet_names.map(sheet => 
+                                        `<option value="${sheet}" ${sheet === (file.sheet_name || file.sheet_names[0]) ? 'selected' : ''}>${sheet}</option>`
+                                    ).join('')}
+                                </select>
+                            ` : ''}
+                        </div>
+                        ${file.fields.map((field, fieldIndex) => `
+                            <div class="field-row">
+                                <select onchange="updateField(${fileIndex}, ${fieldIndex}, 'source', this.value)">
+                                    <option value="">选择源字段</option>
+                                    ${file.columns.map(col => 
+                                        `<option value="${col}" ${field.source === col ? 'selected' : ''}>${col}</option>`
+                                    ).join('')}
+                                </select>
+                                <span style="padding: 0 10px; color: #666;">→</span>
+                                <input type="text" 
+                                       placeholder="目标字段名（留空使用源字段名）" 
+                                       value="${field.target || ''}"
+                                       onchange="updateField(${fileIndex}, ${fieldIndex}, 'target', this.value)">
+                                ${file.fields.length > 1 ? `
+                                    <button class="remove-field-btn" onclick="removeField(${fileIndex}, ${fieldIndex})">删除</button>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                        <button class="add-field-btn" onclick="addField(${fileIndex})">+ 添加字段</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 切换Sheet
+        async function changeSheet(fileIndex, sheetName) {
+            const file = uploadedFiles[fileIndex];
+            file.sheet_name = sheetName;
+
+            try {
+                const response = await fetch('/api/read_file', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_id: file.file_id,
+                        sheet_name: sheetName
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showAlert(data.error || '读取失败', 'error');
+                    return;
+                }
+
+                file.columns = data.columns;
+                file.row_count = data.row_count;
+                file.fields = [{ source: '', target: '' }]; // 重置字段配置
+
+                renderFieldConfigs();
+            } catch (error) {
+                showAlert(`读取失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 更新字段
+        function updateField(fileIndex, fieldIndex, type, value) {
+            const file = uploadedFiles[fileIndex];
+            if (!file.fields[fieldIndex]) {
+                file.fields[fieldIndex] = {};
+            }
+            file.fields[fieldIndex][type] = value;
+            updateMergeButton();
+        }
+
+        // 添加字段
+        function addField(fileIndex) {
+            const file = uploadedFiles[fileIndex];
+            file.fields.push({ source: '', target: '' });
+            renderFieldConfigs();
+        }
+
+        // 删除字段
+        function removeField(fileIndex, fieldIndex) {
+            const file = uploadedFiles[fileIndex];
+            file.fields.splice(fieldIndex, 1);
+            if (file.fields.length === 0) {
+                file.fields = [{ source: '', target: '' }];
+            }
+            renderFieldConfigs();
+            updateMergeButton();
+        }
+
+        // 更新合并按钮状态
+        function updateMergeButton() {
+            const hasValidConfig = uploadedFiles.some(file => 
+                file.fields && file.fields.some(field => field.source)
+            );
+            mergeBtn.disabled = !hasValidConfig || uploadedFiles.length === 0;
+        }
+
+        // 生成汇总表
+        mergeBtn.addEventListener('click', async () => {
+            // 验证配置
+            const tables = uploadedFiles.map(file => ({
+                file_id: file.file_id,
+                sheet_name: file.sheet_name || (file.sheet_names && file.sheet_names[0]) || 'Sheet1',
+                table_name: file.originalName,
+                fields: file.fields
+                    .filter(field => field.source) // 只包含已选择源字段的配置
+                    .map(field => ({
+                        source: field.source,
+                        target: field.target || field.source
+                    }))
+            })).filter(table => table.fields.length > 0);
+
+            if (tables.length === 0) {
+                showAlert('请至少配置一个字段', 'error');
+                return;
+            }
+
+            loading.classList.add('show');
+            mergeBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/merge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tables: tables,
+                        output_filename: '汇总表.xlsx',
+                        include_source: true
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showAlert(data.error || '合并失败', 'error');
+                    return;
+                }
+
+                outputId = data.output_id;
+                showAlert(`汇总表生成成功！共 ${data.row_count} 行，${data.column_count} 列`, 'success');
+
+                // 自动下载
+                setTimeout(() => {
+                    window.location.href = `/api/download/${outputId}`;
+                }, 500);
+
+            } catch (error) {
+                showAlert(`合并失败: ${error.message}`, 'error');
+            } finally {
+                loading.classList.remove('show');
+                mergeBtn.disabled = false;
+            }
+        });
+
+        // 初始化
+        renderFileList();
+        renderFieldConfigs();
+    </script>
+</body>
+</html>
