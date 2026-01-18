@@ -1,74 +1,49 @@
 name: Build Windows EXE
 
 on:
-  workflow_dispatch:  # 手动触发
   push:
     branches:
-      - main
-      - master
-    paths:
-      - 'app.py'
-      - 'requirements.txt'
-      - 'templates/**'
-      - '.github/workflows/build-windows-exe.yml'
-  release:
-    types: [created]
+      - cursor/excelmergertool-windows-exe-da3a
+  pull_request:
+    branches:
+      - cursor/excelmergertool-windows-exe-da3a
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
     runs-on: windows-latest
     
     steps:
-    - name: 检出代码
+    - name: Checkout repository
       uses: actions/checkout@v4
-      
-    - name: 设置Python环境
-      uses: actions/setup-python@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
-        
-    - name: 安装依赖
+        python-version: '3.11'
+    
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        
-    - name: 安装PyInstaller
+    
+    - name: Build EXE with PyInstaller
       run: |
-        pip install pyinstaller
-        
-    - name: 创建必要的目录
-      run: |
-        if not exist uploads mkdir uploads
-        if not exist output mkdir output
-        
-    - name: 打包为exe
-      run: |
-        pyinstaller --name="Excel数据汇总工具" ^
-          --onefile ^
-          --add-data="templates;templates" ^
-          --hidden-import=flask ^
-          --hidden-import=flask_cors ^
-          --hidden-import=pandas ^
-          --hidden-import=openpyxl ^
-          --hidden-import=xlrd ^
-          --collect-all=pandas ^
-          --collect-all=openpyxl ^
-          --clean ^
-          app.py
-          
-    - name: 检查exe文件
-      run: |
-        if exist "dist\Excel数据汇总工具.exe" (
-          echo "✅ exe文件生成成功"
-          dir dist\Excel数据汇总工具.exe
-        ) else (
-          echo "❌ exe文件生成失败"
-          exit 1
-        )
-        
-    - name: 上传打包产物
-      uses: actions/upload-artifact@v3
+        pyinstaller --name="Excel数据汇总工具" --onefile --windowed --add-data "templates;templates" --hidden-import=flask --hidden-import=pandas --hidden-import=openpyxl --hidden-import=xlrd --hidden-import=flask_cors --collect-all=openpyxl --collect-all=pandas app.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
         name: Excel数据汇总工具-Windows
         path: dist/Excel数据汇总工具.exe
         retention-days: 30
+    
+    - name: Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/Excel数据汇总工具.exe
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

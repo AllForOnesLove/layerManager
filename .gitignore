@@ -7,9 +7,31 @@ __pycache__/
 env/
 venv/
 ENV/
-.venv
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# 上传和输出文件
+# PyInstaller
+*.manifest
+*.spec
+
+# Flask
+instance/
+.webassets-cache
+
+# 项目特定
 uploads/
 output/
 *.xlsx
@@ -20,15 +42,19 @@ output/
 .idea/
 *.swp
 *.swo
+*~
 
-# 系统文件
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# PyInstaller
-build/
-dist/
-*.spec
-
-# 但保留dist中的exe文件（通过GitHub Actions生成）
-!dist/.gitkeep
+# 数据文件（不提交示例文件）
+收款合同2025.xlsx
+2025年12月台账/
+表A_合并数据.xlsx

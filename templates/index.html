@@ -525,8 +525,23 @@
                 // 为每个文件初始化字段配置（如果没有）
                 if (!file.fields) {
                     file.fields = [
-                        { source: '', target: '' }
+                        { 
+                            source: '', 
+                            target: '',
+                            sheet_name: file.sheet_name || (file.sheet_names && file.sheet_names[0]),
+                            columns: file.columns || []
+                        }
                     ];
+                } else {
+                    // 确保已有字段也有sheet_name和columns
+                    file.fields.forEach(field => {
+                        if (!field.sheet_name) {
+                            field.sheet_name = file.sheet_name || (file.sheet_names && file.sheet_names[0]);
+                        }
+                        if (!field.columns || field.columns.length === 0) {
+                            field.columns = file.columns || [];
+                        }
+                    });
                 }
 
                 return `
@@ -543,9 +558,17 @@
                         </div>
                         ${file.fields.map((field, fieldIndex) => `
                             <div class="field-row">
-                                <select onchange="updateField(${fileIndex}, ${fieldIndex}, 'source', this.value)">
+                                ${file.sheet_names && file.sheet_names.length > 1 ? `
+                                    <select onchange="changeFieldSheet(${fileIndex}, ${fieldIndex}, this.value)" style="min-width: 120px;">
+                                        ${file.sheet_names.map(sheet => 
+                                            `<option value="${sheet}" ${(field.sheet_name || file.sheet_name || file.sheet_names[0]) === sheet ? 'selected' : ''}>${sheet}</option>`
+                                        ).join('')}
+                                    </select>
+                                    <span style="padding: 0 5px; color: #666;">|</span>
+                                ` : ''}
+                                <select onchange="updateField(${fileIndex}, ${fieldIndex}, 'source', this.value)" style="flex: 1;">
                                     <option value="">选择源字段</option>
-                                    ${file.columns.map(col => 
+                                    ${(field.columns || file.columns || []).map(col => 
                                         `<option value="${col}" ${field.source === col ? 'selected' : ''}>${col}</option>`
                                     ).join('')}
                                 </select>
@@ -553,7 +576,8 @@
                                 <input type="text" 
                                        placeholder="目标字段名（留空使用源字段名）" 
                                        value="${field.target || ''}"
-                                       onchange="updateField(${fileIndex}, ${fieldIndex}, 'target', this.value)">
+                                       onchange="updateField(${fileIndex}, ${fieldIndex}, 'target', this.value)"
+                                       style="flex: 1;">
                                 ${file.fields.length > 1 ? `
                                     <button class="remove-field-btn" onclick="removeField(${fileIndex}, ${fieldIndex})">删除</button>
                                 ` : ''}
@@ -565,7 +589,7 @@
             }).join('');
         }
 
-        // 切换Sheet
+        // 切换文件的默认Sheet（兼容旧逻辑，保留用于文件级别的sheet选择）
         async function changeSheet(fileIndex, sheetName) {
             const file = uploadedFiles[fileIndex];
             file.sheet_name = sheetName;
@@ -591,7 +615,48 @@
 
                 file.columns = data.columns;
                 file.row_count = data.row_count;
-                file.fields = [{ source: '', target: '' }]; // 重置字段配置
+                // 不重置字段配置，只更新默认的列名
+
+                renderFieldConfigs();
+            } catch (error) {
+                showAlert(`读取失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 切换字段的Sheet（每个字段可以独立选择sheet）
+        async function changeFieldSheet(fileIndex, fieldIndex, sheetName) {
+            const file = uploadedFiles[fileIndex];
+            if (!file.fields[fieldIndex]) {
+                file.fields[fieldIndex] = {};
+            }
+            
+            file.fields[fieldIndex].sheet_name = sheetName;
+
+            try {
+                const response = await fetch('/api/read_file', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_id: file.file_id,
+                        sheet_name: sheetName
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showAlert(data.error || '读取失败', 'error');
+                    return;
+                }
+
+                // 更新该字段的列名列表
+                file.fields[fieldIndex].columns = data.columns;
+                // 如果当前选择的源字段不在新sheet的列名中，清空源字段选择
+                if (file.fields[fieldIndex].source && !data.columns.includes(file.fields[fieldIndex].source)) {
+                    file.fields[fieldIndex].source = '';
+                }
 
                 renderFieldConfigs();
             } catch (error) {
@@ -612,7 +677,13 @@
         // 添加字段
         function addField(fileIndex) {
             const file = uploadedFiles[fileIndex];
-            file.fields.push({ source: '', target: '' });
+            // 新字段默认使用文件的当前sheet和列名
+            file.fields.push({ 
+                source: '', 
+                target: '',
+                sheet_name: file.sheet_name || (file.sheet_names && file.sheet_names[0]),
+                columns: file.columns || []
+            });
             renderFieldConfigs();
         }
 
@@ -637,18 +708,41 @@
 
         // 生成汇总表
         mergeBtn.addEventListener('click', async () => {
-            // 验证配置
-            const tables = uploadedFiles.map(file => ({
-                file_id: file.file_id,
-                sheet_name: file.sheet_name || (file.sheet_names && file.sheet_names[0]) || 'Sheet1',
-                table_name: file.originalName,
-                fields: file.fields
+            // 验证配置 - 支持每个字段独立选择sheet
+            const tables = [];
+            
+            uploadedFiles.forEach(file => {
+                // 按sheet分组字段配置
+                const fieldsBySheet = {};
+                
+                file.fields
                     .filter(field => field.source) // 只包含已选择源字段的配置
-                    .map(field => ({
-                        source: field.source,
-                        target: field.target || field.source
-                    }))
-            })).filter(table => table.fields.length > 0);
+                    .forEach(field => {
+                        // 获取字段的sheet（如果有独立选择，否则使用文件的默认sheet）
+                        const fieldSheet = field.sheet_name || file.sheet_name || (file.sheet_names && file.sheet_names[0]) || 'Sheet1';
+                        
+                        if (!fieldsBySheet[fieldSheet]) {
+                            fieldsBySheet[fieldSheet] = [];
+                        }
+                        
+                        fieldsBySheet[fieldSheet].push({
+                            source: field.source,
+                            target: field.target || field.source
+                        });
+                    });
+                
+                // 为每个sheet创建一个table配置
+                Object.keys(fieldsBySheet).forEach(sheetName => {
+                    if (fieldsBySheet[sheetName].length > 0) {
+                        tables.push({
+                            file_id: file.file_id,
+                            sheet_name: sheetName,
+                            table_name: `${file.originalName} (${sheetName})`,
+                            fields: fieldsBySheet[sheetName]
+                        });
+                    }
+                });
+            });
 
             if (tables.length === 0) {
                 showAlert('请至少配置一个字段', 'error');
